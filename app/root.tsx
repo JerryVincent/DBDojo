@@ -31,7 +31,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="h-auto w-screen container-fluid overflow-x-hidden">
         {children}
         <ScrollRestoration />
         <Scripts />

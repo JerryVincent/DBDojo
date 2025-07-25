@@ -1,138 +1,538 @@
 import type { MetaFunction } from "@remix-run/node";
+import Sidebar from "~/components/Sidebar"
+import { Card } from "~/components/ui/card";
+import { Badge } from "~/components/ui/badge";
+import { Bot, Database, Globe, Play, TrendingUp, Users } from "lucide-react";
+import { Form, useActionData, useNavigation } from "@remix-run/react";
+import { GoogleGenAI } from "@google/genai";
+import { Button } from "~/components/ui/button";
+import { useState, useRef } from "react";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "New Remix App" },
-    { name: "description", content: "Welcome to Remix!" },
+    { title: "DBDojo" },
+    { name: "description", content: "Welcome to DBDojo!" },
   ];
 };
 
+export const action = async ({request}:{request: Request}) => {
+  const formdata = await request.formData();
+  const action = formdata.get("_action");
+  if (action === "ai"){
+    const prompt = formdata.get("prompt") as string;
+    const ai = new GoogleGenAI({apiKey: process.env.GOOGLE_GENAI_API_KEY});
+    const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+    });
+    const generatedText = response.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated";
+    return Response.json({
+        message: generatedText,
+        status: "success"
+    });
+  }
+  else if (action === "query") {
+    // Handle SQL query submission here
+    const query = formdata.get("query") as string;
+    console.log("Received SQL query:", query);
+    return null;
+  }
+}
+
 export default function Index() {
+  const response = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check if we're submitting the AI form specifically
+  const isAiLoading = navigation.state === "submitting" && 
+    navigation.formData?.get("_action") === "ai";
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const { key, target } = e;
+    const { selectionStart, selectionEnd, value } = target as HTMLInputElement;
+    
+    // Define bracket pairs
+    const bracketPairs: { [key: string]: string } = {
+      '{': '}',
+      '[': ']',
+      '(': ')',
+      '"': '"',
+      "'": "'"
+    };
+
+    if (bracketPairs[key]) {
+      e.preventDefault();
+      
+      const closingBracket = bracketPairs[key];
+      const beforeCursor = value.substring(0, selectionStart || 0);
+      const afterCursor = value.substring(selectionEnd || 0);
+      
+      // For quotes, check if we should close or just insert
+      if ((key === '"' || key === "'") && selectionStart === selectionEnd) {
+        // Count occurrences of the quote before cursor
+        const quoteCount = (beforeCursor.match(new RegExp('\\' + key, 'g')) || []).length;
+        
+        // If odd number of quotes, just insert one quote (we're closing)
+        if (quoteCount % 2 === 1) {
+          const newValue = beforeCursor + key + afterCursor;
+          setQuery(newValue);
+          
+          // Set cursor position after the inserted quote
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.setSelectionRange((selectionStart ?? 0) + 1, (selectionStart ?? 0) + 1);
+            }
+          }, 0);
+          return;
+        }
+      }
+      
+      // Insert opening and closing bracket/quote
+      const newValue = beforeCursor + key + closingBracket + afterCursor;
+      setQuery(newValue);
+      
+      // Set cursor position between the brackets
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange((selectionStart || 0) + 1, (selectionStart || 0) + 1);
+        }
+      }, 0);
+    }
+  };
+
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="flex flex-col items-center gap-16">
-        <header className="flex flex-col items-center gap-9">
-          <h1 className="leading text-2xl font-bold text-gray-800 dark:text-gray-100">
-            Welcome to <span className="sr-only">Remix</span>
-          </h1>
-          <div className="h-[144px] w-[434px]">
-            <img
-              src="/logo-light.png"
-              alt="Remix"
-              className="block w-full dark:hidden"
-            />
-            <img
-              src="/logo-dark.png"
-              alt="Remix"
-              className="hidden w-full dark:block"
-            />
+    <div className="min-h-screen bg-gray-400">
+      <div className="grid grid-cols-1 lg:grid-cols-12 min-h-screen">
+        {/* Sidebar - Hidden on mobile, 3 columns on desktop */}
+        <Sidebar/>
+        
+        {/* Main Content - Full width on mobile, 9 columns on desktop */}
+        <div className="col-span-1 lg:col-span-9 p-4 lg:p-6 pt-16 lg:pt-6">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-gradient-primary rounded-xl shadow-glow">
+                  <Database className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-data bg-clip-text text-dark-foreground">
+                    SQL Learning Playground
+                  </h1>
+                  <p className="text-muted-foreground">
+                    Learn SQL with real environmental data from openSenseMap
+                  </p>
+                </div>
+              </div>              
+              <div className="flex gap-2">
+                <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+                  <Globe className="h-3 w-3 mr-1" />
+                  Live Data
+                </Badge>
+                <Badge variant="secondary" className="bg-accent/10 text-accent hover:bg-accent/20">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Real-time Updates
+                </Badge>
+                <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+                  <Users className="h-3 w-3 mr-1" />
+                  Interactive Learning
+                </Badge>
+              </div>
+            </div>
+
+            <div className="my-3 h-12 w-full">
+                <Form className="w-full flex items-center justify-start" method="post">
+                  <input 
+                    ref={inputRef}
+                    type="text" 
+                    name="query"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-3/4 bg-black text-lime-300 h-12 rounded-md"
+                  />
+                  <Button type="submit" variant={"destructive"} className="ms-2 bg-teal-500 w-32" name="_action" value={"query"}><Play/>Run Query</Button>
+                </Form>
+              </div>
+                <div className="my-3 h-12 w-full">
+                <Form className="w-full flex items-center justify-start" method="post">
+                  <input 
+                    type="text" 
+                    name="prompt"
+                    className="w-3/4 bg-black text-lime-300 h-12 rounded-md"
+                  />
+                  <Button 
+                    type="submit" 
+                    variant={"destructive"} 
+                    className="ms-2 bg-teal-500 w-32 disabled:opacity-50" 
+                    name="_action" 
+                    value={"ai"}
+                    disabled={isAiLoading}
+                  >
+                    {isAiLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Bot />
+                        Ask AI
+                      </>
+                    )}
+                  </Button>
+                </Form>
+              </div>
+
+              {(response || isAiLoading) && (
+                <div className="my-4 w-full">
+                  <Card className="p-6 bg-black shadow-elegant">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Bot className="h-5 w-5 text-blue-500" />
+                      <h3 className="text-lg font-semibold text-blue-500">AI Response</h3>
+                      {!isAiLoading && response && (
+                        <Badge variant="secondary" className="ml-auto">
+                          {response?.status}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {isAiLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                          <p className="text-blue-500 text-sm">AI is thinking...</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="prose prose-invert max-w-none">
+                        <div 
+                          className="text-slate-200 leading-relaxed"
+                          dangerouslySetInnerHTML={{
+                            __html: response?.message
+                              // First handle code blocks to prevent interference
+                              ?.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-black rounded-lg p-4 overflow-x-auto my-4 border border-gray-700"><code class="text-lime-300 text-sm whitespace-pre">$2</code></pre>')
+                              // Handle inline code
+                              ?.replace(/`([^`]+)`/g, '<code class="bg-black/50 text-lime-300 px-1.5 py-0.5 rounded text-sm border border-gray-600">$1</code>')
+                              // Handle headers
+                              ?.replace(/^### (.*$)/gm, '<h3 class="text-xl font-semibold text-white mt-6 mb-3 border-b border-gray-600 pb-1">$1</h3>')
+                              ?.replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-white mt-8 mb-4 border-b border-gray-600 pb-2">$1</h2>')
+                              ?.replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-white mt-8 mb-6 border-b border-gray-600 pb-2">$1</h1>')
+                              // Handle lists with proper indentation
+                              ?.replace(/^(\s*)[*\-+] (.*)$/gm, (match: string, indent: string, content: string) => {
+                                const level = Math.floor(indent.length / 2);
+                                return `<div class="flex items-start mb-1" style="margin-left: ${level * 20}px;"><span class="text-blue mr-2 mt-1">•</span><span>${content}</span></div>`;
+                              })
+                              ?.replace(/^(\s*)(\d+)\. (.*)$/gm, (match: string, indent: string, num: string, content: string) => {
+                                const level = Math.floor(indent.length / 2);
+                                return `<div class="flex items-start mb-1" style="margin-left: ${level * 20}px;"><span class="text-blue mr-2 mt-1 min-w-6">${num}.</span><span>${content}</span></div>`;
+                              })
+                              // Handle bold and italic
+                              ?.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                              ?.replace(/\*([^*]+)\*/g, '<em class="text-slate-300 italic">$1</em>')
+                              // Handle line breaks
+                              ?.replace(/\n\n/g, '<br/><br/>')
+                              ?.replace(/\n/g, '<br/>')
+                          }}
+                        />
+                      </div>
+                    )}
+                  </Card>
+                </div>
+              )}
+
+            {/* Welcome Content */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-6 bg-gradient-card shadow-elegant hover:shadow-glow transition-all duration-300">
+                <h3 className="text-xl font-semibold mb-3 text-foreground">
+                  Explore Real Data
+                </h3>
+                <p className="text-slate-200 mb-4">
+                  Access live environmental sensor data from openSenseMap. Learn SQL by querying 
+                  real measurements from IoT devices worldwide.
+                </p>
+                <div className="text-sm text-primary font-medium">
+                  → Select a table from the sidebar to get started
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-gradient-card shadow-elegant hover:shadow-glow transition-all duration-300">
+                <h3 className="text-xl font-semibold mb-3 text-foreground">
+                  Interactive Learning
+                </h3>
+                <p className="text-slate-200 mb-4">
+                  Practice SQL queries with immediate feedback. Explore schemas, browse data, 
+                  and export results from real environmental datasets.
+                </p>
+                <div className="text-sm text-primary font-medium">
+                  → Use dropdown menus for table operations
+                </div>
+              </Card>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+              <Card className="p-4 text-center bg-gradient-card shadow-elegant">
+                <div className="text-2xl font-bold text-primary">5</div>
+                <div className="text-sm text-muted-foreground">Database Tables</div>
+              </Card>
+              <Card className="p-4 text-center bg-gradient-card shadow-elegant">
+                <div className="text-2xl font-bold text-accent">1.3M+</div>
+                <div className="text-sm text-muted-foreground">Records Available</div>
+              </Card>
+              <Card className="p-4 text-center bg-gradient-card shadow-elegant">
+                <div className="text-2xl font-bold text-foreground">Real-time</div>
+                <div className="text-sm text-muted-foreground">Data Updates</div>
+              </Card>
+            </div>
           </div>
-        </header>
-        <nav className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-gray-200 p-6 dark:border-gray-700">
-          <p className="leading-6 text-gray-700 dark:text-gray-200">
-            What&apos;s next?
-          </p>
-          <ul>
-            {resources.map(({ href, text, icon }) => (
-              <li key={href}>
-                <a
-                  className="group flex items-center gap-3 self-stretch p-3 leading-normal text-blue-700 hover:underline dark:text-blue-500"
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {icon}
-                  {text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        </div>
       </div>
     </div>
   );
 }
 
-const resources = [
-  {
-    href: "https://remix.run/start/quickstart",
-    text: "Quick Start (5 min)",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M8.51851 12.0741L7.92592 18L15.6296 9.7037L11.4815 7.33333L12.0741 2L4.37036 10.2963L8.51851 12.0741Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://remix.run/start/tutorial",
-    text: "Tutorial (30 min)",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M4.561 12.749L3.15503 14.1549M3.00811 8.99944H1.01978M3.15503 3.84489L4.561 5.2508M8.3107 1.70923L8.3107 3.69749M13.4655 3.84489L12.0595 5.2508M18.1868 17.0974L16.635 18.6491C16.4636 18.8205 16.1858 18.8205 16.0144 18.6491L13.568 16.2028C13.383 16.0178 13.0784 16.0347 12.915 16.239L11.2697 18.2956C11.047 18.5739 10.6029 18.4847 10.505 18.142L7.85215 8.85711C7.75756 8.52603 8.06365 8.21994 8.39472 8.31453L17.6796 10.9673C18.0223 11.0653 18.1115 11.5094 17.8332 11.7321L15.7766 13.3773C15.5723 13.5408 15.5554 13.8454 15.7404 14.0304L18.1868 16.4767C18.3582 16.6481 18.3582 16.926 18.1868 17.0974Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://remix.run/docs",
-    text: "Remix Docs",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M9.99981 10.0751V9.99992M17.4688 17.4688C15.889 19.0485 11.2645 16.9853 7.13958 12.8604C3.01467 8.73546 0.951405 4.11091 2.53116 2.53116C4.11091 0.951405 8.73546 3.01467 12.8604 7.13958C16.9853 11.2645 19.0485 15.889 17.4688 17.4688ZM2.53132 17.4688C0.951566 15.8891 3.01483 11.2645 7.13974 7.13963C11.2647 3.01471 15.8892 0.951453 17.469 2.53121C19.0487 4.11096 16.9854 8.73551 12.8605 12.8604C8.73562 16.9853 4.11107 19.0486 2.53132 17.4688Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://rmx.as/discord",
-    text: "Join Discord",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 24 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M15.0686 1.25995L14.5477 1.17423L14.2913 1.63578C14.1754 1.84439 14.0545 2.08275 13.9422 2.31963C12.6461 2.16488 11.3406 2.16505 10.0445 2.32014C9.92822 2.08178 9.80478 1.84975 9.67412 1.62413L9.41449 1.17584L8.90333 1.25995C7.33547 1.51794 5.80717 1.99419 4.37748 2.66939L4.19 2.75793L4.07461 2.93019C1.23864 7.16437 0.46302 11.3053 0.838165 15.3924L0.868838 15.7266L1.13844 15.9264C2.81818 17.1714 4.68053 18.1233 6.68582 18.719L7.18892 18.8684L7.50166 18.4469C7.96179 17.8268 8.36504 17.1824 8.709 16.4944L8.71099 16.4904C10.8645 17.0471 13.128 17.0485 15.2821 16.4947C15.6261 17.1826 16.0293 17.8269 16.4892 18.4469L16.805 18.8725L17.3116 18.717C19.3056 18.105 21.1876 17.1751 22.8559 15.9238L23.1224 15.724L23.1528 15.3923C23.5873 10.6524 22.3579 6.53306 19.8947 2.90714L19.7759 2.73227L19.5833 2.64518C18.1437 1.99439 16.6386 1.51826 15.0686 1.25995ZM16.6074 10.7755L16.6074 10.7756C16.5934 11.6409 16.0212 12.1444 15.4783 12.1444C14.9297 12.1444 14.3493 11.6173 14.3493 10.7877C14.3493 9.94885 14.9378 9.41192 15.4783 9.41192C16.0471 9.41192 16.6209 9.93851 16.6074 10.7755ZM8.49373 12.1444C7.94513 12.1444 7.36471 11.6173 7.36471 10.7877C7.36471 9.94885 7.95323 9.41192 8.49373 9.41192C9.06038 9.41192 9.63892 9.93712 9.6417 10.7815C9.62517 11.6239 9.05462 12.1444 8.49373 12.1444Z"
-          strokeWidth="1.5"
-        />
-      </svg>
-    ),
-  },
-];
+
+// import type { MetaFunction } from "@remix-run/node";
+// import Sidebar from "~/components/Sidebar"
+// import { Card } from "~/components/ui/card";
+// import { Badge } from "~/components/ui/badge";
+// import { Bot, Database, Globe, Play, TrendingUp, Users } from "lucide-react";
+// import { Form, useActionData, useNavigation} from "@remix-run/react";
+// import { GoogleGenAI } from "@google/genai";
+// import { Button } from "~/components/ui/button";
+// import { useState, useRef } from "react";
+
+// export const meta: MetaFunction = () => {
+//   return [
+//     { title: "DBDojo" },
+//     { name: "description", content: "Welcome to DBDojo!" },
+//   ];
+// };
+
+// export const action = async ({request}:{request: Request}) => {
+//   const formdata = await request.formData();
+//   const action = formdata.get("_action");
+//   if (action === "ai"){
+//     const prompt = formdata.get("prompt") as string;
+//     const ai = new GoogleGenAI({apiKey: process.env.GOOGLE_GENAI_API_KEY});
+//     const response = await ai.models.generateContent({
+//             model: "gemini-2.5-flash",
+//             contents: prompt,
+//     });
+//     const generatedText = response.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated";
+//     return Response.json({
+//         message: generatedText,
+//         status: "success"
+//     });
+//   }
+// }
+
+
+
+// export default function Index() {
+//   const response = useActionData<typeof action>();
+//   const aiState = useNavigation();
+//   const [query, setQuery] = useState('');
+//   const inputRef = useRef<HTMLInputElement>(null);
+
+//   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+//     const { key, target } = e;
+//     const { selectionStart, selectionEnd, value } = target as HTMLInputElement;
+    
+//     // Define bracket pairs
+//     const bracketPairs: { [key: string]: string } = {
+//       '{': '}',
+//       '[': ']',
+//       '(': ')',
+//       '"': '"',
+//       "'": "'"
+//     };
+
+//     if (bracketPairs[key]) {
+//       e.preventDefault();
+      
+//       const closingBracket = bracketPairs[key];
+//       const beforeCursor = value.substring(0, selectionStart || 0);
+//       const afterCursor = value.substring(selectionEnd || 0);
+      
+//       // For quotes, check if we should close or just insert
+//       if ((key === '"' || key === "'") && selectionStart === selectionEnd) {
+//         // Count occurrences of the quote before cursor
+//         const quoteCount = (beforeCursor.match(new RegExp('\\' + key, 'g')) || []).length;
+        
+//         // If odd number of quotes, just insert one quote (we're closing)
+//         if (quoteCount % 2 === 1) {
+//           const newValue = beforeCursor + key + afterCursor;
+//           setQuery(newValue);
+          
+//           // Set cursor position after the inserted quote
+//           setTimeout(() => {
+//             if (inputRef.current) {
+//               inputRef.current.setSelectionRange((selectionStart ?? 0) + 1, (selectionStart ?? 0) + 1);
+//             }
+//           }, 0);
+//           return;
+//         }
+//       }
+      
+//       // Insert opening and closing bracket/quote
+//       const newValue = beforeCursor + key + closingBracket + afterCursor;
+//       setQuery(newValue);
+      
+//       // Set cursor position between the brackets
+//       setTimeout(() => {
+//         if (inputRef.current) {
+//           inputRef.current.setSelectionRange((selectionStart || 0) + 1, (selectionStart || 0) + 1);
+//         }
+//       }, 0);
+//     }
+//   };
+
+//   return (
+//     <div className="min-h-screen bg-gray-400">
+//       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-screen">
+//         {/* Sidebar - Hidden on mobile, 3 columns on desktop */}
+//         <Sidebar/>
+        
+//         {/* Main Content - Full width on mobile, 9 columns on desktop */}
+//         <div className="col-span-1 lg:col-span-9 p-4 lg:p-6 pt-16 lg:pt-6">
+//           <div className="max-w-6xl mx-auto">
+//             {/* Header */}
+//             <div className="mb-8">
+//               <div className="flex items-center gap-3 mb-4">
+//                 <div className="p-3 bg-gradient-primary rounded-xl shadow-glow">
+//                   <Database className="h-6 w-6 text-white" />
+//                 </div>
+//                 <div>
+//                   <h1 className="text-3xl font-bold bg-gradient-data bg-clip-text text-dark-foreground">
+//                     SQL Learning Playground
+//                   </h1>
+//                   <p className="text-muted-foreground">
+//                     Learn SQL with real environmental data from openSenseMap
+//                   </p>
+//                 </div>
+//               </div>              
+//               <div className="flex gap-2">
+//                 <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+//                   <Globe className="h-3 w-3 mr-1" />
+//                   Live Data
+//                 </Badge>
+//                 <Badge variant="secondary" className="bg-accent/10 text-accent hover:bg-accent/20">
+//                   <TrendingUp className="h-3 w-3 mr-1" />
+//                   Real-time Updates
+//                 </Badge>
+//                 <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+//                   <Users className="h-3 w-3 mr-1" />
+//                   Interactive Learning
+//                 </Badge>
+//               </div>
+//             </div>
+
+//             <div className="my-3 h-12 w-full">
+//                 <Form className="w-full flex items-center justify-start">
+//                   <input 
+//                     ref={inputRef}
+//                     type="text" 
+//                     value={query}
+//                     onChange={(e) => setQuery(e.target.value)}
+//                     onKeyDown={handleKeyDown}
+//                     className="w-3/4 bg-black text-lime-300 h-12 rounded-md"
+//                   />
+//                   <Button type="submit" variant={"destructive"} className="ms-2 bg-teal-500 w-32" name="_action" value={"query"}><Play/>Run Query</Button>
+//                 </Form>
+//               </div>
+//                 <div className="my-3 h-12 w-full">
+//                 <Form className="w-full flex items-center justify-start" method="post">
+//                   <input 
+//                     type="text" 
+//                     name="prompt"
+//                     className="w-3/4 bg-black text-lime-300 h-12 rounded-md"
+//                   />
+//                   <Button type="submit" variant={"destructive"} className="ms-2 bg-teal-500 w-32" name="_action" value={"ai"}><Bot/>Ask AI</Button>
+//                 </Form>
+//               </div>
+
+//             {(response || aiState) && (
+//               <div className="my-4 w-full">
+//                  <Card className="p-6 bg-black shadow-elegant">
+//                     <div className="flex items-center gap-2 mb-4">
+//                       <Bot className="h-5 w-5 text-blue-500" />
+//                       <h3 className="text-lg font-semibold text-blue-500">AI Response</h3>
+//                       <Badge variant="secondary" className="ml-auto">
+//                           {response?.status}
+//                       </Badge>
+//                     </div>
+//                   <div className="prose prose-invert max-w-none">
+//                     <div 
+//                       className="text-slate-200 leading-relaxed whitespace-pre-wrap"
+//                        dangerouslySetInnerHTML={{
+//                       __html: response?.message
+//                       ?.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+//                       ?.replace(/\*(.*?)\*/g, '<em class="text-slate-300">$1</em>')
+//                       ?.replace(/`(.*?)`/g, '<code class="bg-black/50 text-lime-300 px-1 py-0.5 rounded text-sm">$1</code>')
+//                       ?.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-black rounded-lg p-4 overflow-x-auto my-4"><code class="text-lime-300 text-sm">$2</code></pre>')
+//                       ?.replace(/^### (.*$)/gm, '<h3 class="text-xl font-semibold text-white mt-6 mb-3">$1</h3>')
+//                       ?.replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-white mt-8 mb-4">$1</h2>')
+//                       ?.replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-white mt-8 mb-6">$1</h1>')
+//                       ?.replace(/^\* (.*$)/gm, '<li class="ml-4 mb-1">• $1</li>')
+//                       ?.replace(/^\d+\. (.*$)/gm, '<li class="ml-4 mb-1 list-decimal">$1</li>')
+//              }}
+//             />
+//           </div>
+//         </Card>
+//      </div>
+//     )}
+
+//             {/* Welcome Content */}
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//               <Card className="p-6 bg-gradient-card shadow-elegant hover:shadow-glow transition-all duration-300">
+//                 <h3 className="text-xl font-semibold mb-3 text-foreground">
+//                   Explore Real Data
+//                 </h3>
+//                 <p className="text-slate-200 mb-4">
+//                   Access live environmental sensor data from openSenseMap. Learn SQL by querying 
+//                   real measurements from IoT devices worldwide.
+//                 </p>
+//                 <div className="text-sm text-primary font-medium">
+//                   → Select a table from the sidebar to get started
+//                 </div>
+//               </Card>
+
+//               <Card className="p-6 bg-gradient-card shadow-elegant hover:shadow-glow transition-all duration-300">
+//                 <h3 className="text-xl font-semibold mb-3 text-foreground">
+//                   Interactive Learning
+//                 </h3>
+//                 <p className="text-slate-200 mb-4">
+//                   Practice SQL queries with immediate feedback. Explore schemas, browse data, 
+//                   and export results from real environmental datasets.
+//                 </p>
+//                 <div className="text-sm text-primary font-medium">
+//                   → Use dropdown menus for table operations
+//                 </div>
+//               </Card>
+//             </div>
+
+//             {/* Stats Cards */}
+//             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+//               <Card className="p-4 text-center bg-gradient-card shadow-elegant">
+//                 <div className="text-2xl font-bold text-primary">5</div>
+//                 <div className="text-sm text-muted-foreground">Database Tables</div>
+//               </Card>
+//               <Card className="p-4 text-center bg-gradient-card shadow-elegant">
+//                 <div className="text-2xl font-bold text-accent">1.3M+</div>
+//                 <div className="text-sm text-muted-foreground">Records Available</div>
+//               </Card>
+//               <Card className="p-4 text-center bg-gradient-card shadow-elegant">
+//                 <div className="text-2xl font-bold text-foreground">Real-time</div>
+//                 <div className="text-sm text-muted-foreground">Data Updates</div>
+//               </Card>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
