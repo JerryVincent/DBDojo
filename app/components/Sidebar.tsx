@@ -1,7 +1,9 @@
 import { useState } from "react";
+import * as schemas from '~/db'
+import { getTableColumns } from "drizzle-orm";
 import { 
   Database, 
-  Table, 
+  Table as TableIcon, 
   Eye, 
   Search, 
   Download, 
@@ -10,9 +12,11 @@ import {
   ChevronDown,
   Menu,
   X,
-  DatabaseZap
+  DatabaseZap,
+  Copy
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { ScrollArea } from "./ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { Card } from "../components/ui/card";
+import { useToast } from "~/hooks/use-toast";
 
 interface TableOption {
   label: string;
@@ -35,18 +40,27 @@ interface DatabaseTable {
 }
 
 const Sidebar = () => {
+  const toast = useToast();
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [schemaPopover, setSchemaPopover] = useState<{ table: string; columns: string } | null>(null);
+
 
   // Sample database tables for openSenseMap
   const tables: DatabaseTable[] = [
+    {
+      name: "user",
+      description: "Registered users of the platform",
+      recordCount: 12000
+    },
+
     {
       name: "sensors",
       description: "Environmental sensor data",
       recordCount: 15420
     },
     {
-      name: "measurements", 
+      name: "measurement", 
       description: "Sensor measurement records",
       recordCount: 892340
     },
@@ -59,11 +73,6 @@ const Sidebar = () => {
       name: "devices",
       description: "IoT device registry",
       recordCount: 2180
-    },
-    {
-      name: "weather_data",
-      description: "Weather station readings",
-      recordCount: 456780
     }
   ];
 
@@ -71,7 +80,21 @@ const Sidebar = () => {
     {
       label: "View Schema",
       icon: Eye,
-      action: () => alert(`Viewing schema for ${tableName}`)
+      action: () => {
+        const schema = (schemas as Record<string, any>)[tableName];
+        if(!schema){
+          return toast.toast({
+            description: `❌ Schema for ${tableName} not found.`,
+            variant: "destructive"
+          })
+        }
+        const cols = getTableColumns(schema);
+        const columns = Object.values(cols).map((col: any) => {
+        return `${col.name} : ${col.columnType}`;
+       });
+        const text = columns.join("\n");
+        setSchemaPopover({ table: tableName, columns: text });
+      }
     },
     {
       label: "Browse Data",
@@ -104,7 +127,7 @@ const Sidebar = () => {
         className="fixed top-4 left-4 z-50 lg:hidden hover:bg-white/20 bg-transparent"
         onClick={() => setIsMobileOpen(!isMobileOpen)}
       >
-        {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        {isMobileOpen ? <X className="h-5 w-5 bg-red-500" /> : <Menu className="h-5 w-5" />}
       </Button>
 
       {/* Mobile Overlay */}
@@ -160,7 +183,7 @@ const Sidebar = () => {
                   >
                     <div className="flex items-start gap-3 flex-1">
                       <div className="p-2 bg-gradient-data rounded-lg shadow-sm">
-                        <Table className="h-4 w-4 text-white" />
+                        <TableIcon className="h-4 w-4 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -207,6 +230,43 @@ const Sidebar = () => {
         </div>
         </Card>
       </div>
+      {/* Schema Popover */}
+      {schemaPopover && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="bg-card border border-border rounded-xl shadow-xl max-w-lg w-full p-4 space-y-3">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold text-lg text-primary">
+              Schema for {schemaPopover.table}
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSchemaPopover(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <ScrollArea className="h-48 border rounded-md bg-blue-500/20 p-2">
+            <pre className="text-sm font-mono whitespace-pre-wrap">
+            {schemaPopover.columns}
+            </pre>
+          </ScrollArea>
+          <div className="flex justify-end">
+           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+            navigator.clipboard.writeText(schemaPopover.columns);
+            toast.toast({ description: "✅ Schema copied to clipboard!" });
+            }}
+            >
+            <Copy className="h-4 w-4 mr-2" /> Copy
+            </Button>
+          </div>
+        </div>
+    </div>
+  )}
+
     </>
   );
 };
