@@ -1,5 +1,5 @@
 {
-  "id": "649fa536-090c-411a-8882-e807ce1a57f0",
+  "id": "8ebe5cb2-4d6c-41bc-9d53-a2cf069fe4e3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -905,7 +905,228 @@
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
+  "views": {
+    "public.measurement_10min": {
+      "columns": {
+        "sensor_id": {
+          "name": "sensor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time": {
+          "name": "time",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avg_value": {
+          "name": "avg_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_values": {
+          "name": "total_values",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_value": {
+          "name": "min_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_value": {
+          "name": "max_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "name": "measurement_10min",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": true
+    },
+    "public.measurement_1day": {
+      "columns": {
+        "sensor_id": {
+          "name": "sensor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time": {
+          "name": "time",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avg_value": {
+          "name": "avg_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_values": {
+          "name": "total_values",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_value": {
+          "name": "min_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_value": {
+          "name": "max_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "name": "measurement_1day",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": true
+    },
+    "public.measurement_1hour": {
+      "columns": {
+        "sensor_id": {
+          "name": "sensor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time": {
+          "name": "time",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avg_value": {
+          "name": "avg_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_values": {
+          "name": "total_values",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_value": {
+          "name": "min_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_value": {
+          "name": "max_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "name": "measurement_1hour",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": true
+    },
+    "public.measurement_1month": {
+      "columns": {
+        "sensor_id": {
+          "name": "sensor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time": {
+          "name": "time",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avg_value": {
+          "name": "avg_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_values": {
+          "name": "total_values",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_value": {
+          "name": "min_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_value": {
+          "name": "max_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "name": "measurement_1month",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": true
+    },
+    "public.measurement_1year": {
+      "columns": {
+        "sensor_id": {
+          "name": "sensor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time": {
+          "name": "time",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avg_value": {
+          "name": "avg_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_values": {
+          "name": "total_values",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_value": {
+          "name": "min_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_value": {
+          "name": "max_value",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "name": "measurement_1year",
+      "schema": "public",
+      "isExisting": true,
+      "materialized": true
+    }
+  },
   "_meta": {
     "columns": {},
     "schemas": {},
